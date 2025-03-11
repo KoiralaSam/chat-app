@@ -17,10 +17,12 @@ socket.on("message", (message) => {
   $messages.insertAdjacentHTML("beforeend", html);
 });
 
+const locationTemplate = document.querySelector("#location-template").innerHTML;
 socket.on("locationMessage", (url) => {
-  const geolocation = Mustache.render("location-template", {
+  const geolocation = Mustache.render(locationTemplate, {
     url,
   });
+  $messages.insertAdjacentHTML("beforeend", geolocation);
   //console.log(url);
 });
 
