@@ -6,24 +6,68 @@ const $messgageButton = $messageForm.querySelector("button");
 const $locationButton = document.querySelector("#send-location");
 const $messages = document.querySelector("#messages");
 
+//autoscroll
+const autoscroll = () => {
+  //new message element
+  const $newMessage = $messages.lastElementChild;
+
+  //height of new message
+  const newMessageStyles = getComputedStyle($newMessage);
+  const newMessageMargin = parseInt(newMessageStyles.marginBottom);
+  const newMessageHeight = $newMessage.offsetHeight + newMessageMargin;
+
+  //visible height
+  const visibleHeight = $messages.offsetHeight;
+
+  //height of message container
+  const containerHeight = $messages.scrollHeight;
+
+  //how far have I scrolled
+  const scrollOffset = $messages.scrollTop + visibleHeight;
+
+  if (containerHeight - newMessageHeight <= scrollOffset) {
+    $messages.scrollTop = $messages.scrollHeight;
+  }
+};
+
 //Templates
 const messageTemplate = document.querySelector("#message-template").innerHTML;
 
 socket.on("message", (message) => {
-  console.log(message);
   const html = Mustache.render(messageTemplate, {
-    message,
+    username: message.username,
+    message: message.text,
+    createdAt: moment(message.createdAt).format("h:mm A"),
   });
   $messages.insertAdjacentHTML("beforeend", html);
+  autoscroll();
 });
 
 const locationTemplate = document.querySelector("#location-template").innerHTML;
-socket.on("locationMessage", (url) => {
+
+socket.on("locationMessage", ({ username, url, createdAt }) => {
   const geolocation = Mustache.render(locationTemplate, {
+    username,
     url,
+    createdAt: moment(createdAt).format("h:mm A"),
   });
   $messages.insertAdjacentHTML("beforeend", geolocation);
+  autoscroll();
   //console.log(url);
+});
+
+const sidebarTemplate = document.querySelector("#sidebar-template").innerHTML;
+socket.on("roomData", ({ room, users }) => {
+  const html = Mustache.render(sidebarTemplate, {
+    room,
+    users,
+  });
+  document.querySelector("#sidebar").innerHTML = html;
+});
+
+// Options
+const { username, room } = Qs.parse(location.search, {
+  ignoreQueryPrefix: true,
 });
 
 $messageForm.addEventListener("submit", (event) => {
@@ -34,14 +78,12 @@ $messageForm.addEventListener("submit", (event) => {
 
   socket.emit("returnMessage", message, (error) => {
     $messgageButton.removeAttribute("disabled");
-
     $messageInput.value = "";
     $messageInput.focus();
 
     if (error) {
       return console.log(error);
     }
-    console.log("The message was delivered");
   });
 });
 
@@ -66,3 +108,17 @@ $locationButton.addEventListener("click", () => {
     );
   });
 });
+
+socket.emit(
+  "join",
+  {
+    username,
+    room,
+  },
+  (error) => {
+    if (error) {
+      alert(error);
+      location.href = "/";
+    }
+  }
+);
